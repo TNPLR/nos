@@ -15,4 +15,4 @@ clean:
 bochs:
 	bochs -f bochs.ini
 qemu:
-	qemu-system-x86_64 -fda loader.bin
+	qemu-system-x86_64 -drive format=raw,if=floppy,file=loader.bin
