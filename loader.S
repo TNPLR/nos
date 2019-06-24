@@ -105,11 +105,41 @@ movw $HELLO_MESSAGE, %bp
 call print
 call getRam
 
+# Clear Interrupt Flag
+cli
+
+# A20
+inb $0x92, %al
+orb $2, %al
+outb %al, $0x92
+
+# LGDT
+lgdt GDTR
+
+# Enter Protected Mode
+movl %cr0, %eax
+orl $1, %eax
+movl %eax, %cr0
+
+ljmp $0x08, $(0x7c00+OS_PMODE)
+OS_PMODE:
+
 jmp .
 
 HELLO_MESSAGE:
 .asciz "Hello world!"
-
+GDT_NUL:
+  .long 0
+  .long 0
+GDT_CODE32:
+  .long 0x0000FFFF
+  .long 0x00CF9A00
+GDT_DATA32:
+  .long 0x0000FFFF
+  .long 0x00CF9200
+GDTR:
+  .word 24
+  .long GDT_NUL+0x7c00
 
 .org 0x400, 0x62
 # SuperBlock
