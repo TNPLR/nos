@@ -28,17 +28,49 @@ int $0x13
 
 jc error
 
-jmp second_sector
-
-error:
-# Print Error
-movw $ERROR_MSG, %bp
+# Print
+movw $HELLO_MESSAGE, %bp
 call print
+call getRam
+
+# Clear Interrupt Flag
+cli
+
+# A20
+inb $0x92, %al
+orb $2, %al
+outb %al, $0x92
+
+# LGDT
+lgdt GDTR
+
+# Enter Protected Mode
+movl %cr0, %eax
+orl $1, %eax
+movl %eax, %cr0
+
+ljmp $0x08, $(0x7c00+OS_PMODE)
+.code32
+OS_PMODE:
+  movw $0x10, %ax
+  movw %ax, %ss
+  movw %ax, %ds
+  movw %ax, %es
+  movw %ax, %fs
+  movw %ax, %gs
+  movl $(0x7c00+PMODE_MESSAGE), %esi
+  call print32
+
 jmp .
-
-ERROR_MSG:
-.asciz "READ FLOPPY ERROR"
-
+.code16
+# ====================================================================
+# Print Error Message
+# ====================================================================
+error:
+  # Print Error
+  movw $ERROR_MSG, %bp
+  call print
+  jmp .
 # ====================================================================
 # print function
 # ====================================================================
@@ -95,39 +127,87 @@ getRam_loop:
   cmpl $0, %ebx
   jne getRam_loop
   ret
-.org 0x1FE, 0x62
-.byte 0x55
-.byte 0xAA
+.code32
+# =====================================================================
+# print32 (32 bits print method)
+# =====================================================================
+# esi as Message position, zero-term string
+print32:
+  call getCursorPos
+  movw %ax, %dx
 
-second_sector:
-# Print
-movw $HELLO_MESSAGE, %bp
-call print
-call getRam
+  # Count String
+  xorl %ecx, %ecx
+  movl %esi, %edi
+  cnt32:
+  movb (%edi), %al
+  cmpb $0, %al
+  je cnt32_exit
+  incl %edi
+  incl %ecx
+  jmp cnt32
+  cnt32_exit:
 
-# Clear Interrupt Flag
-cli
+  # Print
+  movl $0xb8000, %edi
+  andl $0xFFFF, %edx
+  shll %edx
+  addl %edx, %edi
+  shrl %edx
+  print32loop:
+  movb (%esi), %al
+  movb %al, (%edi)
+  movb $0x07, 1(%edi)
+  incl %esi
+  addl $2, %edi
+  loop print32loop
 
-# A20
-inb $0x92, %al
-orb $2, %al
-outb %al, $0x92
+  # Move cursor to next line
+  movw %dx, %bx
+  addw $80, %bx
+  call setCursorPos
+  ret
 
-# LGDT
-lgdt GDTR
+# =====================================================================
+# getCursorPos
+# =====================================================================
+getCursorPos:
+  movb $0x0E, %al
+  movw $0x3D4, %dx
+  outb %al, %dx
+  incw %dx
+  inb %dx, %al
+  shlw $8, %ax
+  movb $0x0F, %al
+  decw %dx
+  outb %al, %dx
+  incw %dx
+  inb %dx, %al
+  ret
 
-# Enter Protected Mode
-movl %cr0, %eax
-orl $1, %eax
-movl %eax, %cr0
-
-ljmp $0x08, $(0x7c00+OS_PMODE)
-OS_PMODE:
-
-jmp .
-
+# =====================================================================
+# setCursorPos (bx = Position)
+# =====================================================================
+setCursorPos:
+  movb $0x0F, %al
+  movw $0x3D4, %dx
+  outb %al, %dx
+  movb %bl, %al
+  incw %dx
+  outb %al, %dx
+  movb $0x0E, %al
+  decw %dx
+  outb %al, %dx
+  movb %bh, %al
+  incw %dx
+  outb %al, %dx
+  ret
 HELLO_MESSAGE:
 .asciz "Hello world!"
+PMODE_MESSAGE:
+.asciz "We're in Protected Mode Now!!"
+ERROR_MSG:
+.asciz "READ FLOPPY ERROR"
 GDT_NUL:
   .long 0
   .long 0
@@ -140,6 +220,9 @@ GDT_DATA32:
 GDTR:
   .word 24
   .long GDT_NUL+0x7c00
+.org 0x1FE, 0x62
+.byte 0x55
+.byte 0xAA
 
 .org 0x400, 0x62
 # SuperBlock
