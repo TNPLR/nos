@@ -15,4 +15,4 @@ clean:
 bochs:
 	bochs -f bochs.ini
 qemu:
-	qemu-system-x86_64 -drive format=raw,if=floppy,file=loader.bin
+	qemu-system-x86_64 -drive format=raw,file=loader.bin,if=none,id=disk -device ich9-ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0

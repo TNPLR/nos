@@ -11,19 +11,20 @@ movw %ax, %es
 movw %ax, %ds
 movw %ax, %ss
 
-# Reset Floppy (int 0x13, ah = 0x0, dl = 0 (first floppy))
+# Reset Floppy (int 0x13, ah = 0x0, dl = 0x80 (first disk))
 movb $0, %ah
+movb $0x80, %dl
 int $0x13
 
 # Read Number 2 (CHS)
-# (int 0x13, ah = 0x2, al = 1, ch = 0, cl = 2, dh = 0, dl = 0, ES:BX = 0x7E00)
+# (int 0x13, ah = 0x2, al = 1, ch = 0, cl = 2, dh = 0, dl = 0x80, ES:BX = 0x7E00)
 movw $0x200, %bx
 movb $0x2, %ah
 movb $0x1, %al
 movb $0x0, %ch
 movb $0x2, %cl
 movb $0x0, %dh
-movb $0x0, %dl
+movb $0x80, %dl
 int $0x13
 
 jc error
