@@ -6,26 +6,10 @@ xorw %bx, %bx
 xorw %cx, %cx
 xorw %dx, %dx
 
-movw $0x7c0, %ax
+movw $0x7E0, %ax
 movw %ax, %es
 movw %ax, %ds
 movw %ax, %ss
-
-# Reset Floppy (int 0x13, ah = 0x0, dl = 0x80 (first disk))
-movb $0, %ah
-movb $0x80, %dl
-int $0x13
-
-# Read Number 2 (CHS)
-# (int 0x13, ah = 0x2, al = 1, ch = 0, cl = 2, dh = 0, dl = 0x80, ES:BX = 0x7E00)
-movw $0x200, %bx
-movb $0x2, %ah
-movb $0x1, %al
-movb $0x0, %ch
-movb $0x2, %cl
-movb $0x0, %dh
-movb $0x80, %dl
-int $0x13
 
 jc error
 
@@ -50,7 +34,7 @@ movl %cr0, %eax
 orl $1, %eax
 movl %eax, %cr0
 
-ljmp $0x08, $(0x7c00+OS_PMODE)
+ljmp $0x08, $(0x7E00+OS_PMODE)
 .code32
 OS_PMODE:
   movw $0x10, %ax
@@ -59,7 +43,7 @@ OS_PMODE:
   movw %ax, %es
   movw %ax, %fs
   movw %ax, %gs
-  movl $(0x7c00+PMODE_MESSAGE), %esi
+  movl $(0x7E00+PMODE_MESSAGE), %esi
   call print32
 
 jmp .
@@ -220,7 +204,7 @@ GDT_DATA32:
   .long 0x00CF9200
 GDTR:
   .word 24
-  .long GDT_NUL+0x7c00
+  .long GDT_NUL+0x7E00
 .org 0x1FE, 0x62
 .byte 0x55
 .byte 0xAA
