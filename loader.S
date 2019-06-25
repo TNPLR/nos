@@ -43,8 +43,16 @@ OS_PMODE:
   movw %ax, %es
   movw %ax, %fs
   movw %ax, %gs
+
+  movl $0x7c00, %eax
+  movl %eax, %esp
   movl $(0x7E00+PMODE_MESSAGE), %esi
   call print32
+
+  movl $2, %ebx
+  movl $1, %ecx
+  movl $0x9000, %edi
+  call readATA
 
 jmp .
 .code16
@@ -187,6 +195,57 @@ setCursorPos:
   incw %dx
   outb %al, %dx
   ret
+
+# ===============================================================================
+# readATA 
+# ebx = LBA 28 bits
+# ecx = sectors to read count
+# edi = position to put
+# ===============================================================================
+readATA:
+  movw $0x1F6, %dx
+  movl %ebx, %eax
+  shrl $24, %eax
+  orb $0xE0, %al
+  outb %al, %dx
+
+  movw $0x1F2, %dx
+  movb %cl, %al
+  outb %al, %dx
+
+  movw $0x1F3, %dx
+  movl %ebx, %eax
+  outb %al, %dx
+
+  movw $0x1F4, %dx
+  shrl $8, %eax
+  outb %al, %dx
+
+  movw $0x1F5, %dx
+  shrl $8, %eax
+  outb %al, %dx
+
+  movw $0x1F7, %dx
+  movb $0x20, %al
+  outb %al, %dx
+
+  nop
+  nop
+  nop
+  nop
+  .wait_ready:
+    nop
+    inb %dx, %al
+    test $0x8, %al # DRQ bit
+    jz .wait_ready
+
+  # ecx * 512 / 2 = ecx * 256 = ecx << 8
+  shll $8, %ecx
+  movw $0x1F0, %dx
+  rep insw
+
+  ret
+
 HELLO_MESSAGE:
 .asciz "Hello world!"
 PMODE_MESSAGE:
