@@ -48,12 +48,6 @@ OS_PMODE:
   movl %eax, %esp
   movl $(0x7E00+PMODE_MESSAGE), %esi
   call print32
-
-  movl $2, %ebx
-  movl $1, %ecx
-  movl $0x9000, %edi
-  call readATA
-
 jmp .
 .code16
 # ====================================================================
@@ -245,7 +239,6 @@ readATA:
   rep insw
 
   ret
-
 HELLO_MESSAGE:
 .asciz "Hello world!"
 PMODE_MESSAGE:
@@ -267,5 +260,85 @@ GDTR:
 .org 0x1FE, 0x62
 .byte 0x55
 .byte 0xAA
+# =============================================================
+# searchKernel : search kernel.elf
+# =============================================================
+searchKernel:
+# Read superblock to 0x1000
+  movl $4, %ebx
+  movl $2, %ecx
+  movl $0x1000, %edi
+  call readATA
 
+# Read INODE Table to find root directory
+  movl $12, %ebx
+  movl $2, %ecx
+  movl $0x1400, %edi
+  call readATA
+
+# Root directory Inode's block position
+  movl $0x14A8, %esi
+  movl $0x0, %edx
+
+.searchKernel_Root_Block_Loop:
+  movl $0x2, %ebx
+  movl (%esi, %edx, 4), %eax
+  shll %eax
+  addl %eax, %ebx
+  movl $2, %ecx
+  movl $0x1800, %edi
+  call readATA
+  call searchFile
+  cmp $0, %eax
+  jne .found_kernel_inode
+  jmp . # TODO Loop next block
+
+
+.found_kernel_inode:
+  decl %eax
+  movl %0, %edx
+  divl 0x1000 + 40
+
+
+
+searchFile:
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+  pushl %esi
+  pushl %edi
+  movl $0x1800, %ebx
+  movl $0x0, %edx
+  .loop_search_file:
+    movl (%ebx, %edx, 1), %eax
+    cmp $0, %eax
+    je .next_search_file
+    movzbl 6(%ebx, %edx, 1), %eax
+    cmp $10, %eax         # kernel.elf 10 bytes
+    jne .next_search_file
+    leal 6(%ebx, %edx, 1), %edi
+    leal KERN_FILENAME+0x7E00, %esi
+    movl $10, %ecx
+    repe cmpsb
+    cmp $0, %ecx
+    jne .next_search_file
+    movl (%ebx, %edx, 1), %eax
+    jmp .search_file_exit
+  .next_search_file:
+    movzwl 4(%ebx, %edx, 1), %eax
+    addl %eax, %edx
+    cmp $0x400, %edx
+    jl .loop_search_file
+
+  .search_file_end:
+  movl $0, %eax
+
+  .search_file_exit:
+  popl %edi
+  popl %esi
+  popl %ecx
+  popl %ebx
+  ret
+KERN_FILENAME:
+  .asciz "kernel.elf"
 .org 0x400, 0x62
