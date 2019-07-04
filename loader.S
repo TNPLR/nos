@@ -48,7 +48,9 @@ OS_PMODE:
   movl %eax, %esp
   movl $(0x7E00+PMODE_MESSAGE), %esi
   call print32
-jmp .
+
+  call searchKernel
+  jmp .
 .code16
 # ====================================================================
 # Print Error Message
@@ -102,7 +104,7 @@ print:
 getRam:
   movl $0xe820, %eax
   xorl %ebx, %ebx
-  movw $0x400, %di
+  movw $0x3E00, %di
   movl $32, %ecx
   movl $0x534D4150, %edx
 getRam_loop:
@@ -197,6 +199,7 @@ setCursorPos:
 # edi = position to put
 # ===============================================================================
 readATA:
+  pushl %edx
   movw $0x1F6, %dx
   movl %ebx, %eax
   shrl $24, %eax
@@ -238,6 +241,7 @@ readATA:
   movw $0x1F0, %dx
   rep insw
 
+  popl %edx
   ret
 HELLO_MESSAGE:
 .asciz "Hello world!"
@@ -257,36 +261,35 @@ GDT_DATA32:
 GDTR:
   .word 24
   .long GDT_NUL+0x7E00
-.org 0x1FE, 0x62
-.byte 0x55
-.byte 0xAA
 # =============================================================
 # searchKernel : search kernel.elf
 # =============================================================
 searchKernel:
-# Read superblock to 0x1000
-  movl $4, %ebx
-  movl $2, %ecx
+# Read superblock to 0x1000 and block descriptor table to 0x1400
+  movl $34, %ebx
+  movl $4, %ecx
   movl $0x1000, %edi
   call readATA
 
 # Read INODE Table to find root directory
-  movl $12, %ebx
+  movl 0x1408, %ebx
+  addl $16, %ebx
+  shll %ebx
   movl $2, %ecx
-  movl $0x1400, %edi
+  movl $0x1800, %edi
   call readATA
 
 # Root directory Inode's block position
-  movl $0x14A8, %esi
+  movl $0x18A8, %esi
   movl $0x0, %edx
 
 .searchKernel_Root_Block_Loop:
-  movl $0x2, %ebx
+  movl $32, %ebx
   movl (%esi, %edx, 4), %eax
   shll %eax
   addl %eax, %ebx
   movl $2, %ecx
-  movl $0x1800, %edi
+  movl $0x1C00, %edi
   call readATA
   call searchFile
   cmp $0, %eax
@@ -296,10 +299,40 @@ searchKernel:
 
 .found_kernel_inode:
   decl %eax
-  movl %0, %edx
+  movl $0, %edx
   divl 0x1000 + 40
+  shll $5, %eax
+  movl 0x1408(%eax), %ebx
+  addl $16, %ebx
+  movl %edx, %eax
+  xorl %edx, %edx
+  movl $8, %ecx
+  divl %ecx
+  addl %eax, %ebx
+  shll %ebx
+  movl $2, %ecx
+  movl $0x2000, %edi
+  call readATA
+  shll $7, %edx
 
+  movl $32, %eax
+  pushl %eax
 
+  movl $-1, %eax
+  pushl %eax
+
+  movl $0, %eax
+  pushl %eax
+
+  leal 0x2000(%edx), %esi
+  pushl %esi
+
+  movl $0x800000, %edi
+  pushl %edi
+  call readInodeBlock
+
+  addl $20, %esp
+  ret
 
 searchFile:
   pushl %ebx
@@ -307,7 +340,7 @@ searchFile:
   pushl %edx
   pushl %esi
   pushl %edi
-  movl $0x1800, %ebx
+  movl $0x1C00, %ebx
   movl $0x0, %edx
   .loop_search_file:
     movl (%ebx, %edx, 1), %eax
@@ -316,7 +349,7 @@ searchFile:
     movzbl 6(%ebx, %edx, 1), %eax
     cmp $10, %eax         # kernel.elf 10 bytes
     jne .next_search_file
-    leal 6(%ebx, %edx, 1), %edi
+    leal 8(%ebx, %edx, 1), %edi
     leal KERN_FILENAME+0x7E00, %esi
     movl $10, %ecx
     repe cmpsb
@@ -336,9 +369,443 @@ searchFile:
   .search_file_exit:
   popl %edi
   popl %esi
+  popl %edx
   popl %ecx
   popl %ebx
   ret
+
 KERN_FILENAME:
   .asciz "kernel.elf"
-.org 0x400, 0x62
+
+# readInodeBlock
+# protect:
+#  EBX EDI EBP
+# STACK:
+# +24 No. zero block LBA
+# +20 read block count
+# +16  block number (start from zero)
+# +12  inode pos
+# +8  address to put
+# +4  return address
+# +0  ebp
+# Number Zero Block is at LBA 33
+
+
+#
+readInodeBlock:
+  pushl %ebp
+  movl %esp, %ebp
+
+  pushl %edi
+  pushl %ebx
+
+  movl 12(%ebp), %ebx
+  movl 16(%ebp), %edx
+  movl 20(%ebp), %ecx
+  movl 28(%ebx), %eax
+  shr %eax
+
+.riblock_loop:
+  test %ecx, %ecx
+  jz .riblock_ret_val
+  cmp %eax, %edx
+  jge .riblock_ret_val
+  cmp $12, %edx
+  jl .riblock_directBlocks
+  cmp $268, %edx
+  jl .riblock_indirect
+  cmp $65804, %edx
+  jl .riblock_db_indirect
+  cmp $16843020, %edx
+  jl .riblock_tp_indirect
+  jge .riblock_ret_val
+
+# Current Register Status
+# EAX 512 bytes block count
+# EBX INODE POS
+# ECX Counter
+# EDX CURRENT BLOCK NO.
+.riblock_directBlocks:
+  pushl %eax
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+
+  movl 40(%ebx, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+  movl 8(%ebp), %edi
+
+  call readATA
+
+  movl %edi, 8(%ebp)
+
+  jmp .riblock_loop_end
+
+.riblock_indirect:
+  pushl %eax
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+
+# ======================= STAGE I ==============================
+  movl 88(%ebx), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+  movl 8(%ebp), %edi
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE II ==============================
+  movl 8(%ebp), %edi
+  subl $12, %edx
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl %edi, 8(%ebp)
+
+  jmp .riblock_loop_end
+
+.riblock_db_indirect:
+  pushl %eax
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+
+# ======================= STAGE I ==============================
+  movl 92(%ebx), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+  movl 8(%ebp), %edi
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE II ==============================
+  movl 8(%ebp), %edi
+  subl $268, %edx
+  shrl $8, %edx
+
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE III ==============================
+  movl 8(%ebp), %edi
+  subl $268, %edx
+  andl $256, %edx
+
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shl %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl %edi, 8(%ebp)
+
+  jmp .riblock_loop_end
+
+.riblock_tp_indirect:
+  pushl %eax
+  pushl %ebx
+  pushl %ecx
+  pushl %edx
+
+# ======================= STAGE I ==============================
+  movl 96(%ebx), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+  movl 8(%ebp), %edi
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE II ==============================
+  movl 8(%ebp), %edi
+  subl $65804, %edx
+  shrl $16, %edx
+
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE III ==============================
+  movl 8(%ebp), %edi
+  subl $65804, %edx
+  shrl $8, %edx
+  andl $256, %edx
+
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shll %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl (%esp), %edx
+  movl 4(%esp), %ecx
+  movl 8(%esp), %ebx
+  movl 12(%esp), %eax
+# ======================= STAGE IV ==============================
+  movl 8(%ebp), %edi
+  subl $65804, %edx
+  andl $256, %edx
+
+  movl (%edi, %edx, 4), %edx
+  movl 24(%ebp), %ebx
+  shl %edx
+  addl %edx, %ebx
+  movl $2, %ecx
+
+  call readATA
+
+  movl %edi, 8(%ebp)
+
+  jmp .riblock_loop_end
+
+.riblock_loop_end:
+
+  popl %edx
+  popl %ecx
+  popl %ebx
+  popl %eax
+
+  decl %ecx
+  incl %edx
+  jmp .riblock_loop
+.riblock_ret_val:
+  movl 20(%ebp), %eax
+  subl %ecx, %eax
+.riblock_leave:
+  popl %ebx
+  popl %edi
+
+  leave
+  ret
+
+# ESI = INODE POS; EDI = READ TO ADDR
+readInodeFile:
+  movl %esp, %ebp
+  movl $0, %ecx
+  .loop_read_inode_file:
+    movl 40(%esi, %ecx, 4), %ebx
+    test %ebx, %ebx
+    jz .read_inode_file_end
+    addl $16, %ebx
+    shll %ebx
+    pushl %ecx
+    movl $2, %ecx
+    call readATA
+    popl %ecx
+    incl %ecx
+    cmp $12, %ecx
+    jne .loop_read_inode_file
+
+  movl 40(%esi, %ecx, 4), %ebx
+  test %ebx, %ebx
+  jz .read_inode_file_end
+  addl $16, %ebx
+  shll %ebx
+  incl %ecx
+  pushl %ecx
+  movl $2, %ecx
+  pushl %edi
+  movl $0x2400, %edi
+  call readATA
+  popl %edi
+  movl $0, %ecx
+  pushl %esi
+  movl $0x2400, %esi
+
+  .loop_read_indirect_block1:
+    movl (%esi, %ecx, 4), %ebx
+    test %ebx, %ebx
+    jz .read_inode_file_end
+    addl $16, %ebx
+    shll %ebx
+    pushl %ecx
+    movl $2, %ecx
+    call readATA
+    popl %ecx
+    incl %ecx
+    cmp $256, %ecx
+    jne .loop_read_indirect_block1
+
+  popl %esi
+  popl %ecx
+
+  movl 40(%esi, %ecx, 4), %ebx
+  test %ebx, %ebx
+  jz .read_inode_file_end
+  addl $16, %ebx
+  shll %ebx
+  incl %ecx
+  pushl %ecx
+  movl $2, %ecx
+  pushl %edi
+  movl $0x2400, %edi
+  call readATA
+  popl %edi
+
+  movl $0, %ecx
+  pushl %esi
+  movl $0x2400, %esi
+  .loop_read_double_indirect_block1:
+    movl (%esi, %ecx, 4), %ebx
+    test %ebx, %ebx
+    jz .read_inode_file_end
+    addl $16, %ebx
+    shll %ebx
+    pushl %ecx
+    movl $2, %ecx
+    pushl %edi
+    movl $0x2800, %edi
+    call readATA
+    popl %edi
+    pushl %esi
+    movl $0, %ecx
+    movl $0x2800, %esi
+
+    .loop_read_double_indirect_block2:
+      movl (%esi, %ecx, 4), %ebx
+      test %ebx, %ebx
+      jz .read_inode_file_end
+      addl $16, %ebx
+      shll %ebx
+      pushl %ecx
+      movl $2, %ecx
+      call readATA
+      popl %ecx
+      incl %ecx
+      cmp $256, %ecx
+      jne .loop_read_double_indirect_block2
+    popl %esi
+    popl %ecx
+    incl %ecx
+    cmp $256, %ecx
+    jne .loop_read_double_indirect_block1
+
+  popl %esi
+  popl %ecx
+
+
+  movl 40(%esi, %ecx, 4), %ebx
+  test %ebx, %ebx
+  jz .read_inode_file_end
+  addl $16, %ebx
+  shll %ebx
+  incl %ecx
+  pushl %ecx
+  movl $2, %ecx
+  pushl %edi
+  movl $0x2400, %edi
+  call readATA
+  popl %edi
+
+  movl $0, %ecx
+  pushl %esi
+  movl $0x2400, %esi
+  .loop_read_triple_indirect_block1:
+    movl (%esi, %ecx, 4), %ebx
+    test %ebx, %ebx
+    jz .read_inode_file_end
+    addl $16, %ebx
+    shll %ebx
+    pushl %ecx
+    movl $2, %ecx
+    pushl %edi
+    movl $0x2800, %edi
+    call readATA
+    popl %edi
+    pushl %esi
+    movl $0, %ecx
+    movl $0x2800, %esi
+
+    .loop_read_triple_indirect_block2:
+      movl (%esi, %ecx, 4), %ebx
+      test %ebx, %ebx
+      jz .read_inode_file_end
+      addl $16, %ebx
+      shll %ebx
+      pushl %ecx
+      movl $2, %ecx
+      pushl %edi
+      movl $0x2800, %edi
+      call readATA
+      popl %edi
+      pushl %esi
+      movl $0, %ecx
+      movl $0x2C00, %esi
+
+      .loop_read_triple_indirect_block3:
+        movl (%esi, %ecx, 4), %ebx
+        test %ebx, %ebx
+        jz .read_inode_file_end
+        addl $16, %ebx
+        shll %ebx
+        pushl %ecx
+        movl $2, %ecx
+        call readATA
+        popl %ecx
+        incl %ecx
+        cmp $256, %ecx
+        jne .loop_read_triple_indirect_block3
+
+      popl %esi
+      popl %ecx
+      incl %ecx
+      cmp $256, %ecx
+      jne .loop_read_double_indirect_block2
+    popl %esi
+    popl %ecx
+
+    incl %ecx
+    cmp $256, %ecx
+    jne .loop_read_double_indirect_block1
+  popl %esi
+  popl %ecx
+  .read_inode_file_end:
+  movl %ebp, %esp
+  ret

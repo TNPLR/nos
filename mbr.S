@@ -16,11 +16,11 @@ movb $0, %ah
 movb $0x80, %dl
 int $0x13
 
-# Read Number 3, 4 (CHS)
-# (int 0x13, ah = 0x2, al = 2, ch = 0, cl = 3, dh = 0, dl = 0x80, ES:BX = 0x7E00)
+# Read Number 3 and 32 sectors (CHS)
+# (int 0x13, ah = 0x2, al = 32, ch = 0, cl = 3, dh = 0, dl = 0x80, ES:BX = 0x7E00)
 movw $0x200, %bx
 movb $0x2, %ah
-movb $0x2, %al
+movb $32, %al
 movb $0x0, %ch
 movb $0x3, %cl
 movb $0x0, %dh
@@ -40,8 +40,8 @@ jmp .
 .byte 0
 .byte 0
 .byte 0
-.long 2
-.long 122878
+.long 16
+.long 122864
 .org 0x1FE, 0x0
 .byte 0x55
 .byte 0xAA
