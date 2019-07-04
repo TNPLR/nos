@@ -318,20 +318,65 @@ searchKernel:
   movl $32, %eax
   pushl %eax
 
-  movl $-1, %eax
+  movl $1, %eax
   pushl %eax
 
   movl $0, %eax
   pushl %eax
 
-  leal 0x2000(%edx), %esi
-  pushl %esi
+  leal 0x2000(%edx), %eax
+  pushl %eax
 
-  movl $0x800000, %edi
-  pushl %edi
+  movl $0x10000, %eax
+  pushl %eax
   call readInodeBlock
 
   addl $20, %esp
+
+.load_elf_loop:
+  movl 0x1001C, %ebx          # Program header start position
+  movl (%ebx), %eax
+  cmp $1, %eax
+  je .load_elf
+  addl $0x20, %ebx
+  jmp .load_elf_loop
+
+.load_elf:
+  movl $32, %eax
+  pushl %eax
+
+  movl 0x10(%ebx), %eax
+  test $0x3ff, %eax
+  jz .load_less
+  addl 0x400, %eax
+  .load_less:
+  shr $10, %eax
+  pushl %eax
+
+  movl 4(%ebx), %eax
+  shr $10, %eax
+  pushl %eax
+
+  leal 0x2000(%edx), %eax
+  pushl %eax
+
+  movl 0x8(%ebx), %eax
+  pushl %eax
+  call readInodeBlock
+
+  addl $20, %esp
+
+  movl 0x4(%ebx), %esi
+  andl $1023, %esi
+  test %esi, %esi
+  jz .add_elf_header
+  movl 0x10(%ebx), %ecx
+  movl 0x8(%ebx), %edi
+  rep movsb
+
+  .add_elf_header:
+  addl $0x20, %ebx
+  jmp .load_elf_loop
   ret
 
 searchFile:
@@ -623,189 +668,4 @@ readInodeBlock:
   popl %edi
 
   leave
-  ret
-
-# ESI = INODE POS; EDI = READ TO ADDR
-readInodeFile:
-  movl %esp, %ebp
-  movl $0, %ecx
-  .loop_read_inode_file:
-    movl 40(%esi, %ecx, 4), %ebx
-    test %ebx, %ebx
-    jz .read_inode_file_end
-    addl $16, %ebx
-    shll %ebx
-    pushl %ecx
-    movl $2, %ecx
-    call readATA
-    popl %ecx
-    incl %ecx
-    cmp $12, %ecx
-    jne .loop_read_inode_file
-
-  movl 40(%esi, %ecx, 4), %ebx
-  test %ebx, %ebx
-  jz .read_inode_file_end
-  addl $16, %ebx
-  shll %ebx
-  incl %ecx
-  pushl %ecx
-  movl $2, %ecx
-  pushl %edi
-  movl $0x2400, %edi
-  call readATA
-  popl %edi
-  movl $0, %ecx
-  pushl %esi
-  movl $0x2400, %esi
-
-  .loop_read_indirect_block1:
-    movl (%esi, %ecx, 4), %ebx
-    test %ebx, %ebx
-    jz .read_inode_file_end
-    addl $16, %ebx
-    shll %ebx
-    pushl %ecx
-    movl $2, %ecx
-    call readATA
-    popl %ecx
-    incl %ecx
-    cmp $256, %ecx
-    jne .loop_read_indirect_block1
-
-  popl %esi
-  popl %ecx
-
-  movl 40(%esi, %ecx, 4), %ebx
-  test %ebx, %ebx
-  jz .read_inode_file_end
-  addl $16, %ebx
-  shll %ebx
-  incl %ecx
-  pushl %ecx
-  movl $2, %ecx
-  pushl %edi
-  movl $0x2400, %edi
-  call readATA
-  popl %edi
-
-  movl $0, %ecx
-  pushl %esi
-  movl $0x2400, %esi
-  .loop_read_double_indirect_block1:
-    movl (%esi, %ecx, 4), %ebx
-    test %ebx, %ebx
-    jz .read_inode_file_end
-    addl $16, %ebx
-    shll %ebx
-    pushl %ecx
-    movl $2, %ecx
-    pushl %edi
-    movl $0x2800, %edi
-    call readATA
-    popl %edi
-    pushl %esi
-    movl $0, %ecx
-    movl $0x2800, %esi
-
-    .loop_read_double_indirect_block2:
-      movl (%esi, %ecx, 4), %ebx
-      test %ebx, %ebx
-      jz .read_inode_file_end
-      addl $16, %ebx
-      shll %ebx
-      pushl %ecx
-      movl $2, %ecx
-      call readATA
-      popl %ecx
-      incl %ecx
-      cmp $256, %ecx
-      jne .loop_read_double_indirect_block2
-    popl %esi
-    popl %ecx
-    incl %ecx
-    cmp $256, %ecx
-    jne .loop_read_double_indirect_block1
-
-  popl %esi
-  popl %ecx
-
-
-  movl 40(%esi, %ecx, 4), %ebx
-  test %ebx, %ebx
-  jz .read_inode_file_end
-  addl $16, %ebx
-  shll %ebx
-  incl %ecx
-  pushl %ecx
-  movl $2, %ecx
-  pushl %edi
-  movl $0x2400, %edi
-  call readATA
-  popl %edi
-
-  movl $0, %ecx
-  pushl %esi
-  movl $0x2400, %esi
-  .loop_read_triple_indirect_block1:
-    movl (%esi, %ecx, 4), %ebx
-    test %ebx, %ebx
-    jz .read_inode_file_end
-    addl $16, %ebx
-    shll %ebx
-    pushl %ecx
-    movl $2, %ecx
-    pushl %edi
-    movl $0x2800, %edi
-    call readATA
-    popl %edi
-    pushl %esi
-    movl $0, %ecx
-    movl $0x2800, %esi
-
-    .loop_read_triple_indirect_block2:
-      movl (%esi, %ecx, 4), %ebx
-      test %ebx, %ebx
-      jz .read_inode_file_end
-      addl $16, %ebx
-      shll %ebx
-      pushl %ecx
-      movl $2, %ecx
-      pushl %edi
-      movl $0x2800, %edi
-      call readATA
-      popl %edi
-      pushl %esi
-      movl $0, %ecx
-      movl $0x2C00, %esi
-
-      .loop_read_triple_indirect_block3:
-        movl (%esi, %ecx, 4), %ebx
-        test %ebx, %ebx
-        jz .read_inode_file_end
-        addl $16, %ebx
-        shll %ebx
-        pushl %ecx
-        movl $2, %ecx
-        call readATA
-        popl %ecx
-        incl %ecx
-        cmp $256, %ecx
-        jne .loop_read_triple_indirect_block3
-
-      popl %esi
-      popl %ecx
-      incl %ecx
-      cmp $256, %ecx
-      jne .loop_read_double_indirect_block2
-    popl %esi
-    popl %ecx
-
-    incl %ecx
-    cmp $256, %ecx
-    jne .loop_read_double_indirect_block1
-  popl %esi
-  popl %ecx
-  .read_inode_file_end:
-  movl %ebp, %esp
   ret
