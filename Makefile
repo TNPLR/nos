@@ -1,4 +1,5 @@
 CC=gcc
+CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall
 LD=ld
 
 .PHONY: all clean filesys
@@ -27,8 +28,10 @@ mbr.o: mbr.S
 	${CC} -c $<
 mbr.bin: mbr.o
 	${LD} -Tloader.ld $< -o $@
-kernel.elf:
-	dd if=/dev/urandom of=$@ bs=512 count=32
+kernel.o: kernel.c
+	${CC} -c $< -o $@ -m32 ${CFLAGS}
+kernel.elf: kernel.o
+	${LD} -Tkernel.ld $< -o $@ -m elf_i386
 clean:
 	rm -f *.o *.tmp *.bin *.img *.elf
 bochs:
