@@ -39,4 +39,4 @@ clean:
 bochs:
 	bochs -f bochs.ini
 qemu:
-	qemu-system-x86_64 -drive format=raw,file=hdd.img,if=none,id=disk -device ich9-ahci,id=ahci -device ide-drive,drive=disk,bus=ahci.0
+	qemu-system-x86_64 -drive file=hdd.img,index=0,media=disk,if=ide,format=raw -S -s

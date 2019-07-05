@@ -51,8 +51,11 @@ OS_PMODE:
 
   call searchKernel
 
+  movl $(0x7E00+PMODE_MESSAGE), %esi
+  call print32
+
   movl %eax, %edx
-  jmp %edx
+  jmp *%edx
 
   hlt
 .code16
@@ -251,6 +254,8 @@ HELLO_MESSAGE:
 .asciz "Hello world!"
 PMODE_MESSAGE:
 .asciz "We're in Protected Mode Now!!"
+JMP_MESSAGE:
+.asciz "We're going to jump to the kernel!!"
 ERROR_MSG:
 .asciz "READ FLOPPY ERROR"
 GDT_NUL:
