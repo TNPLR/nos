@@ -50,7 +50,11 @@ OS_PMODE:
   call print32
 
   call searchKernel
-  jmp .
+
+  movl %eax, %edx
+  jmp %edx
+
+  hlt
 .code16
 # ====================================================================
 # Print Error Message
@@ -315,6 +319,7 @@ searchKernel:
   call readATA
   shll $7, %edx
 
+  pushl %edx
   movl $32, %eax
   pushl %eax
 
@@ -332,15 +337,20 @@ searchKernel:
   call readInodeBlock
 
   addl $20, %esp
+  popl %edx
 
-.load_elf_loop:
+  movzwl 0x1002C, %ecx
   movl 0x1001C, %ebx          # Program header start position
+  leal 0x10000(%ebx), %ebx
+.load_elf_loop:
+  pushl %ecx
+  pushl %edx
+
   movl (%ebx), %eax
   cmp $1, %eax
   je .load_elf
-  addl $0x20, %ebx
-  jmp .load_elf_loop
-
+  popl %edx
+  jmp .add_elf_header
 .load_elf:
   movl $32, %eax
   pushl %eax
@@ -365,18 +375,23 @@ searchKernel:
   call readInodeBlock
 
   addl $20, %esp
+  popl %edx
 
   movl 0x4(%ebx), %esi
   andl $1023, %esi
   test %esi, %esi
   jz .add_elf_header
-  movl 0x10(%ebx), %ecx
+  movl 0x4(%ebx), %esi
   movl 0x8(%ebx), %edi
+  addl %edi, %esi
+  movl 0x10(%ebx), %ecx
   rep movsb
 
   .add_elf_header:
+  popl %ecx
   addl $0x20, %ebx
-  jmp .load_elf_loop
+  loop .load_elf_loop
+  movl 0x10018, %eax
   ret
 
 searchFile:

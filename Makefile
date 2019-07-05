@@ -30,8 +30,10 @@ mbr.bin: mbr.o
 	${LD} -Tloader.ld $< -o $@
 kernel.o: kernel.c
 	${CC} -c $< -o $@ -m32 ${CFLAGS}
-kernel.elf: kernel.o
-	${LD} -Tkernel.ld $< -o $@ -m elf_i386
+multiboot_header.o: multiboot_header.S
+	${CC} -c $< -o $@ -m32
+kernel.elf: kernel.o multiboot_header.o
+	${LD} -Tkernel.ld $^ -o $@ -m elf_i386
 clean:
 	rm -f *.o *.tmp *.bin *.img *.elf
 bochs:
