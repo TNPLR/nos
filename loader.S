@@ -9,9 +9,11 @@ xorw %dx, %dx
 movw $0x7E0, %ax
 movw %ax, %es
 movw %ax, %ds
+
+movw $0, %ax
 movw %ax, %ss
 
-jc error
+movw $0x7c00, %sp
 
 # Print
 movw $HELLO_MESSAGE, %bp
@@ -50,7 +52,6 @@ OS_PMODE:
   call print32
 
   call searchKernel
-
 
   movl %eax, %edx
   jmp *%edx
@@ -368,7 +369,7 @@ searchKernel:
   movl 0x10(%ebx), %eax
   test $0x3ff, %eax
   jz .load_less
-  addl 0x400, %eax
+  addl $0x400, %eax
   .load_less:
   shr $10, %eax
   pushl %eax
@@ -386,21 +387,23 @@ searchKernel:
 
   addl $20, %esp
   popl %edx
-
   movl 0x4(%ebx), %esi
   andl $1023, %esi
+  
   test %esi, %esi
+  
   jz .add_elf_header
   movl 0x4(%ebx), %esi
   movl 0x8(%ebx), %edi
   addl %edi, %esi
   movl 0x10(%ebx), %ecx
   rep movsb
-
   .add_elf_header:
+
   popl %ecx
   addl $0x20, %ebx
   loop .load_elf_loop
+
   movl 0x10018, %eax
   ret
 
