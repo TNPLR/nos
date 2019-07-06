@@ -51,8 +51,6 @@ OS_PMODE:
 
   call searchKernel
 
-  movl $(0x7E00+PMODE_MESSAGE), %esi
-  call print32
 
   movl %eax, %edx
   jmp *%edx
@@ -233,29 +231,36 @@ readATA:
   movb $0x20, %al
   outb %al, %dx
 
-  nop
-  nop
-  nop
-  nop
   .wait_ready:
-    nop
     inb %dx, %al
+    inb %dx, %al
+    inb %dx, %al
+    inb %dx, %al
+    inb %dx, %al
+    test $0x80, %al # BSY bit
+    jnz .wait_ready
+    test $0x1, %al # ERR bit
+    jnz .wait_ready
+    test $0x20, %al # DF bit
+    jnz .wait_ready
     test $0x8, %al # DRQ bit
     jz .wait_ready
 
   # ecx * 512 / 2 = ecx * 256 = ecx << 8
-  shll $8, %ecx
+  movl %ecx, %eax
+  movl $256, %ecx
   movw $0x1F0, %dx
   rep insw
 
+  movl %eax, %ecx
+  movw $0x1F7, %dx
+  loop .wait_ready
   popl %edx
   ret
 HELLO_MESSAGE:
 .asciz "Hello world!"
 PMODE_MESSAGE:
 .asciz "We're in Protected Mode Now!!"
-JMP_MESSAGE:
-.asciz "We're going to jump to the kernel!!"
 ERROR_MSG:
 .asciz "READ FLOPPY ERROR"
 GDT_NUL:
