@@ -294,24 +294,46 @@ searchKernel:
   movl $0x1800, %edi
   call readATA
 
-# Root directory Inode's block position
-  movl $0x18A8, %esi
-  movl $0x0, %edx
+# block number zero
+  movl $0x0, %ecx
+  jmp .read_next_root_block
 
 .searchKernel_Root_Block_Loop:
-  movl $32, %ebx
-  movl (%esi, %edx, 4), %eax
-  shll %eax
-  addl %eax, %ebx
-  movl $2, %ecx
-  movl $0x1C00, %edi
-  call readATA
+  pushl %ecx
   call searchFile
+  popl %ecx
   cmp $0, %eax
   jne .found_kernel_inode
-  jmp . # TODO Loop next block
+.read_next_root_block:
+  pushl %ecx
+  movl $32, %eax
+  pushl %eax
 
+  movl $1, %eax
+  pushl %eax
 
+  pushl %ecx
+
+  movl $0x1880, %eax # Root Inode Position
+  pushl %eax
+
+  movl $0x1c00, %eax
+  pushl %eax
+
+  call readInodeBlock
+
+  addl $20, %esp
+  popl %ecx
+  incl %ecx
+  test %eax, %eax
+  jnz .searchKernel_Root_Block_Loop
+.kernel_not_found:
+  movl $(0x7E00+.kernel_not_found_msg), %esi
+  call print32
+  hlt
+
+.kernel_not_found_msg:
+  .asciz "Kernel not found"
 .found_kernel_inode:
   decl %eax
   movl $0, %edx
@@ -462,9 +484,9 @@ KERN_FILENAME:
 # +4  return address
 # +0  ebp
 # Number Zero Block is at LBA 33
+# Return Value: Total read block count
 
 
-#
 readInodeBlock:
   pushl %ebp
   movl %esp, %ebp
