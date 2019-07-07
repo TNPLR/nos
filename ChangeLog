@@ -3,4 +3,7 @@
 
 2019-7-7	v0.14-alpha.1	TNPLR	<hsiaosvideo@gmail.com>
 	* Put things in different folders
-	* asm_utility.S: Share code for I/O
+	* boot/asm_utility.S: Share code for I/O
+
+2019-7-7	v0.14-alpha.2 TNPLR <hsiaosvideo@gmail.com>
+	* multiboot_header.S: Enter compatibility mode
