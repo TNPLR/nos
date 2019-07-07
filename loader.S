@@ -372,8 +372,8 @@ searchKernel:
   addl $20, %esp
   popl %edx
 
-  movzwl 0x1002C, %ecx
-  movl 0x1001C, %ebx          # Program header start position
+  movzwl 0x10038, %ecx
+  movl 0x10020, %ebx          # Program header start position
   leal 0x10000(%ebx), %ebx
 .load_elf_loop:
   pushl %ecx
@@ -388,7 +388,7 @@ searchKernel:
   movl $32, %eax
   pushl %eax
 
-  movl 0x10(%ebx), %eax
+  movl 0x20(%ebx), %eax
   test $0x3ff, %eax
   jz .load_less
   addl $0x400, %eax
@@ -396,34 +396,34 @@ searchKernel:
   shr $10, %eax
   pushl %eax
 
-  movl 4(%ebx), %eax
+  movl 8(%ebx), %eax
   shr $10, %eax
   pushl %eax
 
   leal 0x2000(%edx), %eax
   pushl %eax
 
-  movl 0x8(%ebx), %eax
+  movl 0x10(%ebx), %eax
   pushl %eax
   call readInodeBlock
 
   addl $20, %esp
   popl %edx
-  movl 0x4(%ebx), %esi
+  movl 0x8(%ebx), %esi
   andl $1023, %esi
   
   test %esi, %esi
   
   jz .add_elf_header
-  movl 0x4(%ebx), %esi
-  movl 0x8(%ebx), %edi
+  movl 0x8(%ebx), %esi
+  movl 0x10(%ebx), %edi
   addl %edi, %esi
-  movl 0x10(%ebx), %ecx
+  movl 0x20(%ebx), %ecx
   rep movsb
   .add_elf_header:
 
   popl %ecx
-  addl $0x20, %ebx
+  addl $0x38, %ebx
   loop .load_elf_loop
 
   movl 0x10018, %eax

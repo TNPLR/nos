@@ -1,6 +1,7 @@
 CC=gcc
 CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall
 LD=ld
+TOAMD64=objcopy -I elf32-i386 -O elf64-x86-64 $@ $@
 
 .PHONY: all clean filesys
 all: hdd.img
@@ -30,10 +31,12 @@ mbr.bin: mbr.o
 	${LD} -Tloader.ld $< -o $@
 kernel.o: kernel.c
 	${CC} -c $< -o $@ -m32 ${CFLAGS}
+	${TOAMD64}
 multiboot_header.o: multiboot_header.S
 	${CC} -c $< -o $@ -m32
+	${TOAMD64}
 kernel.elf: kernel.o multiboot_header.o
-	${LD} -Tkernel.ld $^ -o $@ -m elf_i386
+	${LD} -Tkernel.ld $^ -o $@ -m elf_x86_64
 clean:
 	rm -f *.o *.tmp *.bin *.img *.elf
 bochs:
