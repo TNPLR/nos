@@ -1,2 +1,6 @@
 2019-7-7	v0.13.5	TNPLR	<hsiaosvideo@gmail.com>
 	* Add A ChangLog
+
+2019-7-7	v0.14-alpha.1 TNPLR <hsiaosvideo@gmail.com>
+	* Put things in different folders
+	* asm_utility.S: Share code for I/O

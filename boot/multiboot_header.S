@@ -1,4 +1,5 @@
 .section .multiboot_header
+.global bootEntry
 
 header_start:
 .long 0xE85250D6
@@ -10,3 +11,5 @@ header_start:
 .word 0
 .long 8
 header_end:
+bootEntry:
+  jmp .

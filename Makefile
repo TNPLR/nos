@@ -1,45 +1,28 @@
-CC=gcc
-CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall
-LD=ld
-TOAMD64=objcopy -I elf32-i386 -O elf64-x86-64 $@ $@
-
-.PHONY: all clean filesys
+.PHONY: all clean filesys boot
 all: hdd.img
 	@echo "========================================================"
 	@echo "Please enter \"sudo make filesys\" to complete the image"
 	@echo "========================================================"
-filesys:
+boot:
+	make -C boot/ all
+filesys: hdd.img
 	losetup -o 16384 /dev/loop3 hdd.img
 	mkfs.ext2 /dev/loop3
 	mkdir mnt/
 	mount /dev/loop3 mnt/
-	cp kernel.elf mnt/
+	cp boot/kernel.elf mnt/
 	umount mnt/
 	rmdir mnt/
 	losetup -d /dev/loop3
-hdd.img: loader.bin mbr.bin kernel.elf
+hdd.img: boot
 	dd if=/dev/zero of=$@ bs=512 count=122880
-	dd if=./mbr.bin of=$@ bs=512 count=1 conv=notrunc
-	dd if=./loader.bin of=$@ seek=2 bs=512 count=14 conv=notrunc
-loader.o: loader.S
-	${CC} -c $<
-loader.bin: loader.o
-	${LD} -Tloader.ld $< -o $@
-mbr.o: mbr.S
-	${CC} -c $<
-mbr.bin: mbr.o
-	${LD} -Tloader.ld $< -o $@
-kernel.o: kernel.c
-	${CC} -c $< -o $@ -m32 ${CFLAGS}
-	${TOAMD64}
-multiboot_header.o: multiboot_header.S
-	${CC} -c $< -o $@ -m32
-	${TOAMD64}
-kernel.elf: kernel.o multiboot_header.o
-	${LD} -Tkernel.ld $^ -o $@ -m elf_x86_64
+	dd if=boot/mbr.bin of=$@ bs=512 count=1 conv=notrunc
+	dd if=boot/loader.bin of=$@ seek=2 bs=512 count=14 conv=notrunc
 clean:
-	rm -f *.o *.tmp *.bin *.img *.elf
+	rm -f hdd.img
+	make -C vmtest/ clean
+	make -C boot/ clean
 bochs:
-	bochs -f bochs.ini
+	make -C vmtest/ bochs
 qemu:
-	qemu-system-x86_64 -drive file=hdd.img,index=0,media=disk,if=ide,format=raw
+	make -C vmtest/ qemu
