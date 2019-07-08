@@ -13,6 +13,18 @@ header_start:
 .word 0
 .long 8
 header_end:
+GDT64:
+  .quad 0
+GDT64_CODE:
+  .long 0x0000FFFF
+  .long 0x00AF9A00
+GDT64_DATA:
+  .long 0
+  .long 0x9200
+GDT64_END:
+GDT64_PTR:
+  .word GDT64_END - GDT64 - 1
+  .quad GDT64
 bootEntry:
 # Setup Page Table
   leal 0x1C0000, %edi
@@ -52,5 +64,18 @@ bootEntry:
   orl $0x80000000, %eax
   movl %eax, %cr0
 
+# Load new GDT
+  lgdt GDT64_PTR
+
+# jmp
+  ljmp $0x8,$LMODE
+.code64
+LMODE:
+  movw $0x10, %ax
+  movw %ax, %ds
+  movw %ax, %es
+  movw %ax, %ss
+  movw %ax, %fs
+  movw %ax, %gs
   jmp .
 

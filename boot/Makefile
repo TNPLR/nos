@@ -20,8 +20,7 @@ mbr.o: mbr.S
 mbr.bin: mbr.o
 	${LD} -Tloader.ld $< -o $@
 multiboot_header.o: multiboot_header.S
-	${CC} -c $< -o $@ -m32
-	${TOAMD64}
+	${CC} -c $< -o $@
 kernel.elf: multiboot_header.o asm_utility.o
 	${LD} -Tkernel.ld $^ -o $@ -m elf_x86_64
 clean:

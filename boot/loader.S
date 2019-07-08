@@ -326,5 +326,5 @@ GDT_DATA32:
   .long 0x0000FFFF
   .long 0x00CF9200
 GDTR:
-  .word 24
+  .word 23
   .long GDT_NUL+0x7E00
