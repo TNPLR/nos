@@ -105,7 +105,7 @@ readInodeBlock:
   movl 16(%ebp), %edx
   movl 20(%ebp), %ecx
   movl 28(%ebx), %eax
-  shr %eax
+  shrl %eax
 
 .riblock_loop:
   test %ecx, %ecx
@@ -297,7 +297,7 @@ readInodeBlock:
 
   movl (%edi, %edx, 4), %edx
   movl 24(%ebp), %ebx
-  shl %edx
+  shll %edx
   addl %edx, %ebx
   movl $2, %ecx
 
