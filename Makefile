@@ -2,8 +2,8 @@ export CC=gcc
 export CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall -I${PWD}/include
 export LD=ld
 export LDFLAGS=
-KERN64_OBJ=init/main.o driver/text.o
-.PHONY: all clean filesys boot init bochs qemu driver
+KERN64_OBJ=init/main.o drivers/text.o
+.PHONY: all clean filesys boot init bochs qemu drivers
 all: hdd.img kernel64.elf
 	@echo "========================================================"
 	@echo "Please enter \"sudo make filesys\" to complete the image"
@@ -12,8 +12,8 @@ boot:
 	make -C boot/ all
 init:
 	make -C init/ all
-driver:
-	make -C driver/ all
+drivers:
+	make -C drivers/ all
 filesys: hdd.img kernel64.elf
 	losetup -o 16384 /dev/loop3 hdd.img
 	mkfs.ext2 /dev/loop3
@@ -24,7 +24,7 @@ filesys: hdd.img kernel64.elf
 	umount mnt/
 	rmdir mnt/
 	losetup -d /dev/loop3
-kernel64.elf: init driver
+kernel64.elf: init drivers
 	${LD} ${LDFLAGS} -Tkernel/kernel64.ld -m elf_x86_64 ${KERN64_OBJ} -o $@
 hdd.img: boot
 	dd if=/dev/zero of=$@ bs=512 count=122880
@@ -35,7 +35,7 @@ clean:
 	make -C vmtest/ clean
 	make -C boot/ clean
 	make -C init/ clean
-	make -C driver/ clean
+	make -C drivers/ clean
 bochs:
 	make -C vmtest/ bochs
 qemu:
