@@ -89,7 +89,7 @@ LMODE:
   movw %ax, %ss
   movw %ax, %fs
   movw %ax, %gs
-  movq $0x7C00, %rsp
+  movq $0x7000, %rsp
 
   call searchKernel
 

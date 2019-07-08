@@ -16,5 +16,11 @@
 	* boot/multiboot_header.S:
 		* 64 bit mode ATA and File reading
 		* Read kernel64.elf
-	* init/kmain.c: Infinity Loop
+	* init/main.c: Infinity Loop
 	* kernel/kernel64.ld: kernel64.elf link file
+
+2019-7-8	v0.15-alpha.1 <hsiaosvideo@gmail.com>
+	* init/main.c: Init text system; Print a message
+	* drivers/text.c: New Print Character Function ...
+	* include/pio.h: CPU Port I/O
+	* include/kstring.h: memcpy using rep movsb

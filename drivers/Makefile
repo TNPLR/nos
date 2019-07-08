@@ -1,4 +1,4 @@
-ALL_OBJ=main.o
+ALL_OBJ=text.o
 
 
 .PHONY: clean
