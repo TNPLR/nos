@@ -5,9 +5,9 @@
 	* Put things in different folders
 	* boot/asm_utility.S: Share code for I/O
 
-2019-7-7	v0.14-alpha.2 TNPLR <hsiaosvideo@gmail.com>
+2019-7-7	v0.14-alpha.2	TNPLR	<hsiaosvideo@gmail.com>
 	* multiboot_header.S: Enter compatibility mode
 
-2019-7-7	v0.14-alpha.3 TNPLR <hsiaosvideo@gmail.com>
+2019-7-8	v0.14-alpha.3	TNPLR	<hsiaosvideo@gmail.com>
 	* loader.S: Fix GDTR's limit value
 	* multiboot_header.S: Load long mode GDTs
