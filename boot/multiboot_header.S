@@ -102,6 +102,7 @@ LMODE:
   jz .pde
   incq %rcx
   .pde:
+  pushq %rcx
   movq $0x200003, %rbx
   movq $0x1C2008, %rsi
   movq $0x1C5000, %rdi
@@ -119,11 +120,14 @@ LMODE:
       loop .pte_loop
     popq %rcx
     loop .pde_loop
-
+  popq %rcx
   popq %rax
+  pushq %rcx
 
   movq %rax, %rdx
   call readAllKernel
+
+  popq %rdi # Move rcx to rdi
 
   jmp *%rax
 

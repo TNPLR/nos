@@ -29,6 +29,7 @@
 	* boot/multiboot_header.S:
 		* Use less memory at Paging
 		* Paging the kernel and low 2mib at 0xFFFFFFFF80000000
+		* Passing Kernel size using RDI to kmain function
 	* drivers/text.c
 		* Print String functions
 		* Format printing function
