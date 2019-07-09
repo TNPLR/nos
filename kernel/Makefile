@@ -1,4 +1,4 @@
-ALL_OBJ=text.o
+ALL_OBJ=memory.o bitmap.o
 
 
 .PHONY: clean all

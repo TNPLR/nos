@@ -1,7 +1,7 @@
 ALL_OBJ=main.o
 
 
-.PHONY: clean
+.PHONY: clean all
 all: ${ALL_OBJ}
 %.o: %.c
 	${CC} ${CFLAGS} -c $< -o $@

@@ -34,3 +34,7 @@
 		* Print String functions
 		* Format printing function
 	* Makefile: CFLAGS -mcmodel=kernel added
+	* kernel/bitmap.c
+		* Making bitmap functions right now (undone)
+	* include/kstring.h: new memset function
+	* kernel/memory.h: Loop back Page Tables

@@ -1,6 +1,10 @@
 #include <text.h>
+#include <memory.h>
+
 void kmain(unsigned int k_size)
 {
+  // init our pages
+  initRam();
   // Our stack is at 0x7000
   // init text system
   initText();
