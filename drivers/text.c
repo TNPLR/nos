@@ -1,6 +1,10 @@
 #include <text.h>
+
 #include <kstring.h>
 #include <pio.h>
+
+#include <stdarg.h>
+
 
 static unsigned short int getCursorPosition(void)
 {
@@ -40,12 +44,6 @@ void kfflush(void)
   setCursorPosition(buffer_cursor_position);
 }
 
-#define COLOR 0x7
-void bufferPutc(char ch)
-{
-  *(buffer_start_addr + buffer_cursor_position++) = (unsigned short)COLOR << 8 | ch;
-}
-
 static void newline(void)
 {
   buffer_cursor_position += 80 - buffer_cursor_position % 80;
@@ -55,7 +53,9 @@ static void newline(void)
   }
 }
 
-void kputc(char ch)
+
+#define COLOR 0x7
+void bufferPutc(char ch)
 {
   switch (ch) {
     case '\n':
@@ -66,8 +66,86 @@ void kputc(char ch)
       --buffer_cursor_position;
       break;
     default:
-      bufferPutc(ch);
+      *(buffer_start_addr + buffer_cursor_position++) = (unsigned short)COLOR << 8 | ch;
       break;
   }
+}
+
+void kputc(char ch)
+{
+  bufferPutc(ch);
   kfflush();
+}
+
+static inline void kputs_nnl(const char *s)
+{
+  while (*s) {
+    bufferPutc(*s++);
+  }
+}
+
+void kputs(const char *s)
+{
+  kputs_nnl(s);
+  newline();
+  kfflush();
+}
+
+static void kprintu(unsigned long long int num)
+{
+  static char buf[20];
+  int i;
+  for (i = 19; num > 0; --i) {
+    buf[i] = (num % 10) + '0';
+    num /= 10;
+  }
+  while (i <= 9) {
+    bufferPutc(buf[i++]);
+  }
+}
+
+static void kprintx(unsigned long long int num)
+{
+  static char buf[16];
+  int i;
+  for (i = 15; num > 0; --i) {
+    buf[i] = (num & 0xF);
+    num >>= 4;
+  }
+  while (i <= 9) {
+    buf[i] = buf[i] > 9 ? buf[i] + 'A' : buf[i] + '0';
+    bufferPutc(buf[i++]);
+  }
+}
+
+void kprintf(const char *format, ...)
+{
+  va_list args;
+  va_start(args, format);
+  while (*format) {
+    if (*format == '%') {
+      switch (*++format) {
+        case '%':
+          bufferPutc('%');
+          break;
+        case 'u':
+          kprintu(va_arg(args, unsigned));
+          break;
+        case 'x':
+          kprintx(va_arg(args, unsigned));
+          break;
+        case 's':
+          kputs_nnl(va_arg(args, const char *));
+          break;
+        case '\0':
+          return;
+        default: // unknown option
+          bufferPutc(*format);
+          break;
+      }
+    } else {
+      bufferPutc(*format);
+    }
+    ++format;
+  }
 }

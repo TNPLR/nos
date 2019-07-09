@@ -1,5 +1,5 @@
 export CC=gcc
-export CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall -I${PWD}/include
+export CFLAGS=-ffreestanding -no-pie -fno-pic -std=gnu11 -mno-red-zone -Wall -I${PWD}/include -mcmodel=kernel -fno-stack-protector
 export LD=ld
 export LDFLAGS=
 KERN64_OBJ=init/main.o drivers/text.o

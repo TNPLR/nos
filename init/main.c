@@ -6,20 +6,6 @@ void kmain(void)
   initText();
 
   // Print A Msg
-  kputc('T');
-  kputc('h');
-  kputc('i');
-  kputc('s');
-  kputc(' ');
-  kputc('i');
-  kputc('s');
-  kputc(' ');
-  kputc('k');
-  kputc('e');
-  kputc('r');
-  kputc('n');
-  kputc('e');
-  kputc('l');
-  kputc('\n');
+  kputs("This is a 64 bits kernel");
   for (;;) ;
 }

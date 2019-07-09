@@ -46,19 +46,10 @@ bootEntry:
     addl $0x1000, %eax
     addl $8, %edi
     loop .loop_low2mb_pg
-# Setup Page Table low 2mb at 0xffff800000000000
-  movl $0x1C4003, 0x1C0800
-  movl $0x1C5003, 0x1C4000
-  movl $0x1C6003, 0x1C5000
 
-  movl $3, %eax
-  leal 0x1C6000, %edi
-  movl $512, %ecx
-  .loop_low2mb_high_pg:
-    movl %eax, (%edi)
-    addl $0x1000, %eax
-    addl $8, %edi
-    loop .loop_low2mb_high_pg
+# Setup Page Table low 2mb at 0xffffffff80000000 (-2GB)
+  movl $0x1C4003, 0x1C0ff8
+  movl $0x1C2003, 0x1C4ff0
 
 # Enable PAE
   movl %cr4, %eax
@@ -112,8 +103,8 @@ LMODE:
   incq %rcx
   .pde:
   movq $0x200003, %rbx
-  movq $0x1C5008, %rsi
-  movq $0x1C7000, %rdi
+  movq $0x1C2008, %rsi
+  movq $0x1C5000, %rdi
   .pde_loop:
     movq %rdi, %rax
     addq $3, %rax

@@ -5,4 +5,5 @@ void initText(void);
 void kfflush(void);
 void bufferPutc(char ch);
 void kputc(char ch);
+void kputs(const char *s);
 #endif // TEXT_H_

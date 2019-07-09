@@ -24,3 +24,12 @@
 	* drivers/text.c: New Print Character Function ...
 	* include/pio.h: CPU Port I/O
 	* include/kstring.h: memcpy using rep movsb
+
+2019-7-9	v0.15-alpha.2	<hsiaosvideo@gmail.com>
+	* boot/multiboot_header.S:
+		* Use less memory at Paging
+		* Paging the kernel and low 2mib at 0xFFFFFFFF80000000
+	* drivers/text.c
+		* Print String functions
+		* Format printing function
+	* Makefile: CFLAGS -mcmodel=kernel added
