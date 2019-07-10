@@ -38,3 +38,10 @@
 		* Making bitmap functions right now (undone)
 	* include/kstring.h: new memset function
 	* kernel/memory.h: Loop back Page Tables
+
+2019-7-10	v0.15-alpha.3 <hsiaosvideo@gmail.com>
+	* boot/loader.S: new multiboot2 header added
+	* boot/multiboot_header.S:
+		* readAllKernel: Protect Registers
+		* Make rbx value to kmain
+	* init/main.c: kmain new parameter: void * boot_info

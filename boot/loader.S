@@ -51,13 +51,18 @@ OS_PMODE:
   movl %eax, %esp
   movl $(0x7E00+PMODE_MESSAGE), %esi
   call print32
+  call setupBootInfo
 
   call searchKernel
 
   movl %eax, %edx
+
+  movl $0x36d76289, %eax # multiboot 2 magic
+  leal 0x3000, %ebx # boot information
+
   jmp *%edx
 
-  hlt
+  hlt # Won't reach here
 .code16
 # ====================================================================
 # print function
@@ -96,26 +101,63 @@ print:
   ret
 #=====================================================================
 
+
 #=====================================================================
 # int 0xE820
 # (eax = 0xe820) (ebx = 0) (es:di = smap) (ecx = buffer size = 0x200) (edx = smap)
 #=====================================================================
 getRam:
+  pushw %es
+  movw $0, %ax
+  movw %ax, %es
   movl $0xe820, %eax
   xorl %ebx, %ebx
-  movw $0x3E00, %di
-  movl $32, %ecx
+  movw $0x3018, %di
+  movl $24, %ecx
   movl $0x534D4150, %edx
 getRam_loop:
   int $0x15
   movl %eax, %edx
+
+# Change type value 1 -> 1, else -> 0
+  movl 16(%di), %eax
+  cmp $1, %eax
+  je .next_getRam
+  movl $2, 16(%di)
+
+  .next_getRam:
   movl $0xe820, %eax
-  movl $32, %ecx
-  addw $32, %di
+  movl $24, %ecx
+  addw $24, %di
   cmpl $0, %ebx
   jne getRam_loop
+
+  movw %di, %ax
+  movw $0x300C, %di
+  subw $0x3018, %ax
+  movw %ax, (%di)
+  movw $0, 2(%di)
+  popw %es
   ret
+
 .code32
+#=====================================================================
+# setupBootInfo @ 0x3000
+#=====================================================================
+setupBootInfo:
+  leal 0x3008, %ebx
+  movl $6, (%ebx)
+
+# Size of All was written in getRam function
+
+  leal 8(%ebx), %ebx
+  movl $20, (%ebx) # Size of one entry
+
+  leal 4(%ebx), %ebx
+  movl $0, (%ebx) # Version = 0
+
+  ret
+
 KERN_FILENAME:
   .asciz "kernel.elf"
 searchFile:

@@ -1,7 +1,7 @@
 #include <text.h>
 #include <memory.h>
 
-void kmain(unsigned int k_size)
+void kmain(unsigned int k_size, void *boot_info)
 {
   // init our pages
   initRam();

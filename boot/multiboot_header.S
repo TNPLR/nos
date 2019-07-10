@@ -85,6 +85,8 @@ LMODE:
   call searchKernel
 
   pushq %rax
+  pushq %rbx
+
   leaq 0x2000(%rax), %rax
   movl 28(%rax), %eax
   movq %rax, %rbx
@@ -121,6 +123,7 @@ LMODE:
     popq %rcx
     loop .pde_loop
   popq %rcx
+  popq %rbx
   popq %rax
   pushq %rcx
 
@@ -128,6 +131,10 @@ LMODE:
   call readAllKernel
 
   popq %rdi # Move rcx to rdi
+
+  movq %rbx, %rsi
+
+  movq $0xffffffff80007000, %rsp # setup stack
 
   jmp *%rax
 
@@ -576,6 +583,10 @@ searchKernel:
 
 # RDX = INODE POS
 readAllKernel:
+  pushq %rbx
+  pushq %rsi
+  pushq %rdi
+
   movzwq 0x10038, %rcx
   movq 0x10020, %rbx          # Program header start position
   leaq 0x10000(%rbx), %rbx
@@ -631,4 +642,7 @@ readAllKernel:
   loop .load_elf_loop
 
   movq 0x10018, %rax
+  popq %rdi
+  popq %rsi
+  popq %rbx
   ret
