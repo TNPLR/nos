@@ -90,24 +90,24 @@ LMODE:
   leaq 0x2000(%rax), %rax
   movl 28(%rax), %eax
   movq %rax, %rbx
-  andq $255, %rbx
-  shrq $8, %rax
+  andq $7, %rbx
+  shrq $3, %rax
   test %rbx, %rbx
   jz .pte
   incq %rax
   .pte:
-  movq %rax, %rbx
+  pushq %rdx
+  movq %rax, %rdx
   movq %rax, %rcx
-  andq $511, %rbx
+  andq $511, %rdx
   shrq $9, %rcx
-  test %rbx, %rbx
-  jz .pde
-  incq %rcx
   .pde:
   pushq %rcx
   movq $0x200003, %rbx
   movq $0x1C2008, %rsi
   movq $0x1C5000, %rdi
+  test %rcx, %rcx
+  jz .pde_loop_end
   .pde_loop:
     movq %rdi, %rax
     addq $3, %rax
@@ -122,7 +122,27 @@ LMODE:
       loop .pte_loop
     popq %rcx
     loop .pde_loop
+.pde_loop_end:
+  test %rdx, %rdx
+  jz .no_last_page
+
+  movq %rdi, %rax
+  addq $3, %rax
+  movq %rax, (%rsi)
+  addq $8, %rsi
+  movq %rdx, %rcx
+
+  .last_pte_loop:
+    movq %rbx, (%rdi)
+    addq $0x1000, %rbx
+    addq $8, %rdi
+    loop .last_pte_loop
+
+.no_last_page:
   popq %rcx
+  shlq $9, %rcx
+  orq %rdx, %rcx
+  popq %rdx
   popq %rax
   popq %rbx
   pushq %rcx

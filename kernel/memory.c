@@ -58,6 +58,11 @@ static int find_memory_map_entry(void *boot_info)
 	return 1;
 }
 
+static __u32 get_kernel_pg_size(__u32 k_size)
+{
+	return (k_size >> 12) + ((k_size & 0xFFF) && 1);
+}
+
 static int print_mm_info(void)
 {
 	int index = (memory_map->size - 16) / memory_map->entry_size;
@@ -75,10 +80,16 @@ static int print_mm_info(void)
 	return 0;
 }
 
-static int init_bootmem(void)
+static void *pmemory_bitmap = (void *)0x9000;
+static void *vmemory_bitmap = (void *)0xA000;
+static int init_bootmem(__u32 k_pages)
 {
-	// 
-	init_bitmap((void *)0x9000, 0x1000);
+	// Physical Memory 128MiB (base = 0x0)
+	init_bitmap(pmemory_bitmap, 0x1000);
+	set_bitmap(pmemory_bitmap, 0, 1);
+
+	// Virtual Memory 128MiB (base = 0xFFFFFFFF80000000)
+	init_bitmap(vmemory_bitmap, 0x1000);
 	return 0;
 }
 
@@ -86,14 +97,18 @@ int init_mem(__u32 k_size, void *boot_info)
 {
 	// Loop back our page tables at 0xFFFFFF0000000000
 	setupPML4E(((__u64)PML4T) | 3, 0xFFFFFF0000000000);
+	
+	kprintf("Kernel Page Count: %x\n", k_size);
 
 	if (find_memory_map_entry(boot_info)) {
+		kputs("Cannot Find Memory Map Entry");
 		return 1;
 	}
 
 	print_mm_info();
 
-	if (init_bootmem()) {
+	if (init_bootmem(get_kernel_pg_size(k_size))) {
+		kputs("Cannot Initialize Boot Memory System");
 		return 2;
 	}
 

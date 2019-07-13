@@ -27,7 +27,7 @@ int set_bitmap(void *pos, __u64 num, __u64 count)
 	return 0;
 }
 
-int clean_bitmap(void *pos, __u64 num, __u64 count)
+int clear_bitmap(void *pos, __u64 num, __u64 count)
 {
 	for (int i = 0; i < count; ++i) {
 		clearBit(pos, num);

@@ -25,8 +25,8 @@ static void setCursorPosition(__u16 position)
 	outb((position >> 8) & 0xFF, 0x3D5);
 }
 
-static __u16 *screen_start_addr = (__u16 *)0xB8000;
-static __u16 *buffer_start_addr = (__u16 *)0xB9000;
+static __u16 *screen_start_addr = (__u16 *)0xFFFFFFFF800B8000ULL;
+static __u16 *buffer_start_addr = (__u16 *)0xFFFFFFFF800B9000ULL;
 static __u16 buffer_cursor_position = 0;
 
 int init_text(void)
@@ -109,27 +109,28 @@ int kputs(const char *s)
 static void kprintu(__u64 num)
 {
 	static char buf[20];
-	int i;
-	for (i = 19; num > 0; --i) {
-		buf[i] = (num % 10) + '0';
+	int i = 19;
+	do {
+		buf[i--] = (num % 10) + '0';
 		num /= 10;
-	}
-	while (i <= 19) {
-		bufferPutc(buf[i++]);
+	} while (num > 0);
+
+	while (++i <= 19) {
+		bufferPutc(buf[i]);
 	}
 }
 
 static void kprintx(__u64 num)
 {
 	static char buf[16];
-	int i;
-	for (i = 15; num > 0; --i) {
-		buf[i] = (num & 0xF);
+	int i = 15;
+	do {
+		buf[i--] = (num & 0xF);
 		num >>= 4;
-	}
-	while (i <= 15) {
+	} while (num > 0);
+
+	while (++i <= 15) {
 		bufferPutc(buf[i] > 9 ? (buf[i]-10 + 'A') : (buf[i] + '0'));
-		++i;
 	}
 }
 
