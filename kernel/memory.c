@@ -14,17 +14,23 @@ static void setupPML4E(__u64 index, __u64 vaddr)
 
 static void setupPDPE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 27) & 0xFF8) | 0xFFFFFF7FBFDFE000) = index;
+	*(__u64 *)(((vaddr >> 27) & 0xFF8) | 0xFFFFFF7FBFDFE000UL) = index;
 }
 
 static void setupPDE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 18) & 0x1FFFF8) | 0xFFFFFF7FBFC00000) = index;
+	*(__u64 *)(((vaddr >> 18) & 0x1FFFF8) | 0xFFFFFF7FBFC00000UL) = index;
 }
 
 static void setupPTE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 9) & 0x3FFFFFF8) | 0xFFFFFF7F80000000) = index;
+	*(__u64 *)(((vaddr >> 9) & 0x3FFFFFF8U) | 0xFFFFFF7F80000000UL) = index;
+}
+
+static int remove_low_addr_vaddr(void)
+{
+	setupPML4E(0, 0);
+	return 0;
 }
 
 static __u32 bootmem_paddr_page_count;
@@ -81,12 +87,60 @@ static int print_mm_info(void)
 }
 
 static void *pmemory_bitmap = (void *)0x9000;
+static __u64 pmemory_page_count;
 static void *vmemory_bitmap = (void *)0xA000;
+
+static void setup_reserved_memory_bitmap(void)
+{
+	int index = (memory_map->size - 16) / memory_map->entry_size;
+	for (int i = 0; i < index; ++i) {
+		// TODO
+		set_bitmap(memory_map->entry[i].base_addr >> 12,
+				memory_map->entry[i].length >> 12);
+	}
+}
+/*
+ * Please Read the NOS Manual for more details
+ */
+static void setup_bitmap_paddr(__u32 k_pages)
+{
+	/*
+	 * Set Bitmap for reserved memory
+	 */
+	setup_reserved_memory_bitmap();
+
+	/*
+	 * We don't use lower 1MiB
+	 */
+	set_bitmap(pmemory_bitmap, 0, 256);
+
+	/*
+	 * PML4T 0x1C0000
+	 */
+	set_bitmap(pmemory_bitmap, 0x1C0, 1);
+
+	/*
+	 * PDT PT
+	 */
+	set_bitmap(pmemory_bitmap, 0x1C2, 2);
+
+	/*
+	 * PDPT
+	 */
+	set_bitmap(pmemory_bitmap, 0x1C4, 1);
+
+	/*
+	 * PT of k_size
+	 */
+	set_bitmap(pmemory_bitmap, 0x1C5, k_size);
+}
+
 static int init_bootmem(__u32 k_pages)
 {
 	// Physical Memory 128MiB (base = 0x0)
 	init_bitmap(pmemory_bitmap, 0x1000);
-	set_bitmap(pmemory_bitmap, 0, 1);
+
+	setup_bitmap_paddr(k_pages);
 
 	// Virtual Memory 128MiB (base = 0xFFFFFFFF80000000)
 	init_bitmap(vmemory_bitmap, 0x1000);
@@ -97,6 +151,8 @@ int init_mem(__u32 k_size, void *boot_info)
 {
 	// Loop back our page tables at 0xFFFFFF0000000000
 	setupPML4E(((__u64)PML4T) | 3, 0xFFFFFF0000000000);
+
+	remove_low_addr_vaddr();
 	
 	kprintf("Kernel Page Count: %x\n", k_size);
 
@@ -111,6 +167,7 @@ int init_mem(__u32 k_size, void *boot_info)
 		kputs("Cannot Initialize Boot Memory System");
 		return 2;
 	}
+
 
 	return 0;
 }
