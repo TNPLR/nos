@@ -29,23 +29,25 @@ static __u16 *screen_start_addr = (__u16 *)0xB8000;
 static __u16 *buffer_start_addr = (__u16 *)0xB9000;
 static __u16 buffer_cursor_position = 0;
 
-void initText(void)
+int init_text(void)
 {
 	memcpy(buffer_start_addr, screen_start_addr, 0xFA0);
 	buffer_cursor_position = getCursorPosition();
+	return 0;
 }
 
-void bufferScroll(void)
+static void bufferScroll(void)
 {
 	memcpy(buffer_start_addr, buffer_start_addr + 80, 0xE60);
 	buffer_cursor_position = buffer_cursor_position - (buffer_cursor_position % 80);
 	memset(buffer_start_addr + 0x730, 0, 0x140); 
 }
 
-void kfflush(void)
+int kfflush(void)
 {
 	memcpy(screen_start_addr, buffer_start_addr, 0xFA0);
 	setCursorPosition(buffer_cursor_position);
+	return 0;
 }
 
 static void newline(void)
@@ -59,7 +61,7 @@ static void newline(void)
 
 
 #define COLOR 0x7
-void bufferPutc(char ch)
+static void bufferPutc(char ch)
 {
 	switch (ch) {
 	case '\n':
@@ -82,10 +84,11 @@ void bufferPutc(char ch)
 	}
 }
 
-void kputc(char ch)
+int kputc(char ch)
 {
 	bufferPutc(ch);
 	kfflush();
+	return 0;
 }
 
 static inline void kputs_nnl(const char *s)
@@ -95,11 +98,12 @@ static inline void kputs_nnl(const char *s)
 	}
 }
 
-void kputs(const char *s)
+int kputs(const char *s)
 {
 	kputs_nnl(s);
 	newline();
 	kfflush();
+	return 0;
 }
 
 static void kprintu(__u64 num)
@@ -129,7 +133,7 @@ static void kprintx(__u64 num)
 	}
 }
 
-void kprintf(const char *format, ...)
+int kprintf(const char *format, ...)
 {
 	va_list args;
 	va_start(args, format);
@@ -149,7 +153,7 @@ void kprintf(const char *format, ...)
 				kputs_nnl(va_arg(args, const char *));
 				break;
 			case '\0':
-				return;
+				return 0;
 			default: // unknown option
 				bufferPutc(*format);
 				break;
@@ -161,4 +165,5 @@ void kprintf(const char *format, ...)
 	}
 	kfflush();
 	va_end(args);
+	return 0;
 }

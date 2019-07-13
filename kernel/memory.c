@@ -77,7 +77,8 @@ static int print_mm_info(void)
 
 static int init_bootmem(void)
 {
-	init_bitmap(0x9000, 0x1000);
+	// 
+	init_bitmap((void *)0x9000, 0x1000);
 	return 0;
 }
 
