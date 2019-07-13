@@ -82,10 +82,10 @@ LMODE:
   movw %ax, %gs
   movq $0x7000, %rsp
 
+  pushq %rbx
   call searchKernel
 
   pushq %rax
-  pushq %rbx
 
   leaq 0x2000(%rax), %rax
   movl 28(%rax), %eax
@@ -123,8 +123,8 @@ LMODE:
     popq %rcx
     loop .pde_loop
   popq %rcx
-  popq %rbx
   popq %rax
+  popq %rbx
   pushq %rcx
 
   movq %rax, %rdx

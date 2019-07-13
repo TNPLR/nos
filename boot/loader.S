@@ -126,6 +126,10 @@ getRam_loop:
   movl $2, 16(%di)
 
   .next_getRam:
+# Add the value of size
+  movl %es:0x300C, %eax
+  addl $24, %eax
+  movl %eax, %es:0x300C
   movl $0xe820, %eax
   movl $24, %ecx
   addw $24, %di
@@ -149,8 +153,15 @@ setupBootInfo:
   movl $6, (%ebx)
 
 # Size of All was written in getRam function
+  leal 4(%ebx), %ebx
+  movl (%ebx), %eax
+  movl $0, 0x3008(%eax)
+  movl $0, 0x300C(%eax)
+  addl $16, %eax
+  movl %eax, 0x3000
+  movl $0, 0x3004
 
-  leal 8(%ebx), %ebx
+  leal 4(%ebx), %ebx
   movl $20, (%ebx) # Size of one entry
 
   leal 4(%ebx), %ebx
