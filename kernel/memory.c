@@ -90,22 +90,51 @@ static int print_mm_info(void)
 }
 
 static void *pmemory_bitmap = (void *)0xFFFFFFFF80009000;
-static __u64 pmemory_page_count;
+static __u64 pmemory_page_count = 0;
+static __u64 pmemory_page_available_count;
 static void *vmemory_bitmap = (void *)0xFFFFFFFF8000A000;
+
+// TODO ALLOCATE FUNCTIONS
+static void *physical_page_alloc(void)
+{
+	return (void *)0;
+}
+
+enum {
+	PG_P = 0x1UL, // Present
+	PG_RW = 0x2UL,
+	PG_US = 0x4UL, // If Set, CPL=3 could access
+	PG_PWT = 0x8UL, // If Set, table or physical page has a writethrough
+	PG_PCD = 0x10UL, // Page-Level Cache Disable (PCD) Bit
+	PG_A = 0x20UL, // Accessed
+	PG_D = 0x40UL, // Dirty
+	PG_PAT = 0x80UL, // Page-Attribute Table (PAT) Bit
+	PG_G = 0x100UL, // Global Bit
+	PG_NX = 0x8000000000000000UL, // No Execute (NX) Bit
+};
+
+static void *virtual_page_alloc(__u64 page_count)
+{
+	__u64 vpage = find_bits(vmemory_bitmap, 0x1000, page_count);
+	return (void *)0;
+}
 
 static void setup_reserved_memory_bitmap(void)
 {
 	int index = (memory_map->size - 16) / memory_map->entry_size;
 	for (int i = 0; i < index; ++i) {
-		// TODO
 		int base = memory_map->entry[i].base_addr >> 12;
 		int length = memory_map->entry[i].length >> 12;
 		if ((base + length < 0x1000) && memory_map->entry[i].type != 1) {
 			set_bitmap(pmemory_bitmap, base, length);
 		}
-		if (pmemory_page_count < base + length) {
+		if (memory_map->entry[i].type == 1 &&
+			       (pmemory_page_count < base + length)) {
 			pmemory_page_count = base + length;
 		}
+	}
+	if (pmemory_page_count > 32768) {
+		pmemory_page_count = 32768;
 	}
 }
 /*
@@ -169,6 +198,9 @@ static int init_bootmem(__u32 k_pages)
 
 	setup_bitmap_paddr(k_pages);
 
+	pmemory_page_available_count = 
+		available_bits(pmemory_bitmap, pmemory_page_count >> 3);
+
 	// Virtual Memory 128MiB (base = 0xFFFFFFFF80000000)
 	init_bitmap(vmemory_bitmap, 0x1000);
 
@@ -196,6 +228,10 @@ int init_mem(__u32 k_pages, void *boot_info)
 		kputs("Cannot Initialize Boot Memory System");
 		return 2;
 	}
+
+	kprintf("Physical Boot Memory: %u Pages\n", pmemory_page_count);
+	kprintf("Available Boot Memory: %u Pages\n",
+			pmemory_page_available_count);
 
 
 	return 0;
