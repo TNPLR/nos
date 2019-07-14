@@ -21,8 +21,7 @@ static inline void clearBit(void *pos, __u64 num)
 int set_bitmap(void *pos, __u64 num, __u64 count)
 {
 	for (int i = 0; i < count; ++i) {
-		setBit(pos, num);
-		++num;
+		setBit(pos, num + i);
 	}
 	return 0;
 }
@@ -30,8 +29,7 @@ int set_bitmap(void *pos, __u64 num, __u64 count)
 int clear_bitmap(void *pos, __u64 num, __u64 count)
 {
 	for (int i = 0; i < count; ++i) {
-		clearBit(pos, num);
-		++num;
+		clearBit(pos, num + i);
 	}
 	return 0;
 }

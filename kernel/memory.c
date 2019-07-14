@@ -3,28 +3,29 @@
 #include <text.h>
 #include <type.h>
 
-#define PML4T ((void **)0xFFFFFFFF801C0000)
-
 static void setupPML4E(__u64 index, __u64 vaddr)
 {
-	vaddr >>= 39;
-	vaddr &= 0x1FF;
-	*(PML4T+vaddr) = (void *)index;
+	*(__u64 *)(((vaddr >> 36) & 0xFF8) | 0xFFFFFF7FBFDFE000UL) = index;
+}
+
+static void init_loopback_pages(void)
+{
+	*((__u64 *)0x1C0FF0UL) = 0x1C0003;
 }
 
 static void setupPDPE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 27) & 0xFF8) | 0xFFFFFF7FBFDFE000UL) = index;
+	*(__u64 *)(((vaddr >> 27) & 0x1FFFF8L) | 0xFFFFFF7FBFC00000UL) = index;
 }
 
 static void setupPDE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 18) & 0x1FFFF8) | 0xFFFFFF7FBFC00000UL) = index;
+	*(__u64 *)(((vaddr >> 18) & 0x3FFFFFF8UL) | 0xFFFFFF7F80000000UL) = index;
 }
 
 static void setupPTE(__u64 index, __u64 vaddr)
 {
-	*(__u64 *)(((vaddr >> 9) & 0x3FFFFFF8U) | 0xFFFFFF7F80000000UL) = index;
+	*(__u64 *)(((vaddr >> 9) & 0x7FFFFFFFF8UL) | 0xFFFFFF0000000000UL) = index;
 }
 
 static int remove_low_addr_vaddr(void)
@@ -33,7 +34,14 @@ static int remove_low_addr_vaddr(void)
 	return 0;
 }
 
-static __u32 bootmem_paddr_page_count;
+static int remove_1mb_addr_vaddr(void)
+{
+	for (int i = 0; i < 0x100; ++i) {
+		setupPTE(0, 0xFFFFFFFF80100000 | (i << 12));
+	}
+	return 0;
+}
+
 struct multiboot2_memory_map_entry {
 	__u64 base_addr;
 	__u64 length;
@@ -62,11 +70,6 @@ static int find_memory_map_entry(void *boot_info)
 		boot_info = (__u8 *)boot_info + *((__u32 *)boot_info+1);
 	}
 	return 1;
-}
-
-static __u32 get_kernel_pg_size(__u32 k_size)
-{
-	return (k_size >> 12) + ((k_size & 0xFFF) && 1);
 }
 
 static int print_mm_info(void)
@@ -116,7 +119,7 @@ static void setup_bitmap_paddr(__u32 k_pages)
 	setup_reserved_memory_bitmap();
 
 	/*
-	 * We don't use lower 1MiB
+	 * We don't use lower 1MiB, but we still make them in the bitmap
 	 */
 	set_bitmap(pmemory_bitmap, 0, 256);
 
@@ -138,7 +141,25 @@ static void setup_bitmap_paddr(__u32 k_pages)
 	/*
 	 * PT of k_size
 	 */
-	set_bitmap(pmemory_bitmap, 0x1C5, k_pages);
+	set_bitmap(pmemory_bitmap, 0x1C5, k_pages >> 9);
+
+	/*
+	 * k_size
+	 */
+	set_bitmap(pmemory_bitmap, 0x200, k_pages);
+}
+
+static void setup_bitmap_vaddr(__u32 k_pages)
+{
+	/*
+	 * lower 1MiB
+	 */
+	set_bitmap(vmemory_bitmap, 0, 256);
+
+	/*
+	 * Kernel
+	 */
+	set_bitmap(vmemory_bitmap, 0x200, k_pages);
 }
 
 static int init_bootmem(__u32 k_pages)
@@ -150,17 +171,19 @@ static int init_bootmem(__u32 k_pages)
 
 	// Virtual Memory 128MiB (base = 0xFFFFFFFF80000000)
 	init_bitmap(vmemory_bitmap, 0x1000);
+
+	setup_bitmap_vaddr(k_pages);
 	return 0;
 }
 
-int init_mem(__u32 k_size, void *boot_info)
+int init_mem(__u32 k_pages, void *boot_info)
 {
-	// Loop back our page tables at 0xFFFFFF0000000000
-	setupPML4E(((__u64)PML4T) | 3, 0xFFFFFF0000000000);
+	init_loopback_pages();
 
 	remove_low_addr_vaddr();
+	remove_1mb_addr_vaddr();
 	
-	kprintf("Kernel Page Count: %x\n", k_size);
+	kprintf("Kernel Page Count: %u\n", k_pages);
 
 	if (find_memory_map_entry(boot_info)) {
 		kputs("Cannot Find Memory Map Entry");
@@ -169,7 +192,7 @@ int init_mem(__u32 k_size, void *boot_info)
 
 	print_mm_info();
 
-	if (init_bootmem(get_kernel_pg_size(k_size))) {
+	if (init_bootmem(k_pages)){
 		kputs("Cannot Initialize Boot Memory System");
 		return 2;
 	}
