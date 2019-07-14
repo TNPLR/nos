@@ -5,7 +5,7 @@
 static void error_halt(void)
 {
 	asm (
-			"cli"
+			"cli\n"
 			"hlt"
 	    );
 }

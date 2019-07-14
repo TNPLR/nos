@@ -86,17 +86,20 @@ static int print_mm_info(void)
 	return 0;
 }
 
-static void *pmemory_bitmap = (void *)0x9000;
+static void *pmemory_bitmap = (void *)0xFFFFFFFF80009000;
 static __u64 pmemory_page_count;
-static void *vmemory_bitmap = (void *)0xA000;
+static void *vmemory_bitmap = (void *)0xFFFFFFFF8000A000;
 
 static void setup_reserved_memory_bitmap(void)
 {
 	int index = (memory_map->size - 16) / memory_map->entry_size;
 	for (int i = 0; i < index; ++i) {
 		// TODO
-		set_bitmap(memory_map->entry[i].base_addr >> 12,
-				memory_map->entry[i].length >> 12);
+		int base = memory_map->entry[i].base_addr >> 12;
+		int length = memory_map->entry[i].length >> 12;
+		if (base + length < 0x1000) {
+			set_bitmap(pmemory_bitmap, base, length);
+		}
 	}
 }
 /*
@@ -107,7 +110,7 @@ static void setup_bitmap_paddr(__u32 k_pages)
 	/*
 	 * Set Bitmap for reserved memory
 	 */
-	setup_reserved_memory_bitmap();
+	//setup_reserved_memory_bitmap();
 
 	/*
 	 * We don't use lower 1MiB
@@ -132,7 +135,7 @@ static void setup_bitmap_paddr(__u32 k_pages)
 	/*
 	 * PT of k_size
 	 */
-	set_bitmap(pmemory_bitmap, 0x1C5, k_size);
+	set_bitmap(pmemory_bitmap, 0x1C5, k_pages);
 }
 
 static int init_bootmem(__u32 k_pages)
