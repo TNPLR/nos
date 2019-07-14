@@ -97,8 +97,11 @@ static void setup_reserved_memory_bitmap(void)
 		// TODO
 		int base = memory_map->entry[i].base_addr >> 12;
 		int length = memory_map->entry[i].length >> 12;
-		if (base + length < 0x1000) {
+		if ((base + length < 0x1000) && memory_map->entry[i].type != 1) {
 			set_bitmap(pmemory_bitmap, base, length);
+		}
+		if (pmemory_page_count < base + length) {
+			pmemory_page_count = base + length;
 		}
 	}
 }
@@ -110,7 +113,7 @@ static void setup_bitmap_paddr(__u32 k_pages)
 	/*
 	 * Set Bitmap for reserved memory
 	 */
-	//setup_reserved_memory_bitmap();
+	setup_reserved_memory_bitmap();
 
 	/*
 	 * We don't use lower 1MiB
