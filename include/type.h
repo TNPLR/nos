@@ -7,5 +7,5 @@ typedef unsigned long long int __u64;
 
 typedef _Bool bool;
 #define true ((bool)1)
-#define false ((bool)1)
+#define false ((bool)0)
 #endif // TYPE_H_

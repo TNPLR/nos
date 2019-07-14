@@ -150,6 +150,13 @@ int kprintf(const char *format, ...)
 			case 'x':
 				kprintx(va_arg(args, __u32));
 				break;
+			case 'l':
+				if (*++format == 'u') {
+					kprintu(va_arg(args, __u64));
+				} else {
+					kprintx(va_arg(args, __u64));
+				}
+				break;
 			case 's':
 				kputs_nnl(va_arg(args, const char *));
 				break;

@@ -23,6 +23,11 @@ void kmain(__u32 k_pages, void *boot_info)
 		kputs("Boot Info Not at Address Below 1MiB");
 		error_halt();
 	}
+
+	void *pg = page_alloc(200);
+	kprintf("Allocate Page(s) at 0x%lx\n", (__u64)pg);
+
+	page_free(pg, 200);
 	
 	// Print A Msg
 	kputs("This is a 64 bits kernel");
